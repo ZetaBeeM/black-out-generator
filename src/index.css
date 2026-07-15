@@ -1,0 +1,971 @@
+@font-face {
+  font-family: 'TT Chiaro';
+  src: url('/fonts/TT_CHIARO-B.ttf') format('truetype');
+  font-weight: 700;
+  font-display: block;
+}
+
+:root {
+  /* Boxes are black with hairline frames, square corners, no gradients. Only the
+     accents and the backdrop change between chapters; these are the Blackout
+     defaults, overridden per theme from themes.js. */
+  --black: #000;
+  --accent: #b8b8b8;
+  --accent-2: #5e5e5e;
+  --accent-soft: #2c2c2c;
+  --ink: #dcdcdc;
+  --dim: #6f6f6f;
+  --frame: 1px;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100vh;
+}
+
+body {
+  background: var(--black);
+  color: var(--ink);
+  font-family: 'TT Chiaro', ui-monospace, 'DejaVu Sans Mono', monospace;
+  letter-spacing: 0.08em;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* a faint scanline and vignette pass, so the black doesn't read as flat CSS black */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  background:
+    repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.5) 100%);
+}
+
+/* each chapter's backdrop gradient, behind everything. the panels stay black on top of it. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  transition: background 400ms linear;
+}
+
+/* ── header bar ─────────────────────────────────────────────────────────── */
+
+.crumbs {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0 20px;
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.crumbs span {
+  padding: 0 14px;
+  border-left: var(--frame) solid var(--dim);
+}
+
+.crumbs span:last-child {
+  border-right: var(--frame) solid var(--dim);
+}
+
+/* the chapter name cycles the theme: the one crumb you can click */
+.crumbs .chapter {
+  color: var(--accent);
+  background: none;
+  border: none;
+  border-left: var(--frame) solid var(--dim);
+  border-right: var(--frame) solid var(--dim);
+  padding: 0 14px;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.crumbs .chapter:hover {
+  background: var(--accent);
+  color: var(--black);
+  border-color: var(--accent);
+}
+
+/* ── layout ─────────────────────────────────────────────────────────────── */
+
+.app {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 22px;
+  padding: 0 22px 40px;
+  align-items: start;
+}
+
+/* The editor is mounted but hidden until the ending has played. This is needed because
+   `display: grid` above otherwise wins against the `hidden` attribute's own display: none. */
+.app[hidden] {
+  display: none;
+}
+
+/* the ending holds on an empty screen, then the editor comes up out of the black */
+.crumbs,
+.app:not([hidden]) {
+  animation: editor-in 900ms ease-out backwards;
+}
+
+@keyframes editor-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crumbs,
+  .app:not([hidden]) {
+    animation: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* every box in the game is a black rect with a 1px colored frame, doubled by a
+   second frame inset a few px in the secondary accent */
+.panel {
+  position: relative;
+  background: var(--black);
+  border: var(--frame) solid var(--accent);
+  padding: 20px;
+}
+
+.panel::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: var(--frame) solid var(--accent-soft);
+  pointer-events: none;
+}
+
+.panel > * {
+  position: relative;
+}
+
+h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+/* section headers read like the game's location bar: | LIKE THIS | */
+.legend {
+  display: block;
+  margin: 22px 0 10px;
+  padding: 3px 10px;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  border-left: var(--frame) solid var(--accent);
+  border-right: var(--frame) solid var(--accent);
+}
+
+/* the blinking advance-cursor from the dialogue boxes */
+.cursor {
+  display: inline-block;
+  width: 0.6em;
+  height: 0.95em;
+  margin-left: 0.35em;
+  background: var(--ink);
+  vertical-align: -0.08em;
+  animation: blink 1s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ── controls ───────────────────────────────────────────────────────────── */
+
+/* A line is dragged by its grip to reorder it (see App.jsx). The row carries the drop rule
+   on whichever edge the line would land at, so the gap it will fall into is visible while
+   the mouse is still moving. */
+.line-item {
+  position: relative;
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.line-item.dragging {
+  opacity: 0.35;
+}
+
+.line-item.drop-before::before,
+.line-item.drop-after::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.line-item.drop-before::before {
+  top: -4px;
+}
+
+.line-item.drop-after::after {
+  bottom: -4px;
+}
+
+.line-grip {
+  flex: none;
+  width: 22px;
+  padding: 0;
+  /* the grip drags the line itself; a touch here must not scroll the panel */
+  touch-action: none;
+  border-color: transparent;
+  color: var(--dim);
+  font-size: 13px;
+  letter-spacing: 0;
+  cursor: grab;
+}
+
+.line-grip:hover:not(:disabled) {
+  background: none;
+  border-color: var(--dim);
+  color: var(--ink);
+}
+
+.line-grip:active {
+  cursor: grabbing;
+}
+
+input[type='text'],
+input[type='number'],
+select {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--black);
+  color: var(--ink);
+  border: var(--frame) solid var(--dim);
+  border-radius: 0;
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  outline: none;
+  appearance: none;
+}
+
+input[type='text']:focus,
+input[type='number']:focus,
+select:focus {
+  border-color: var(--accent);
+}
+
+input::placeholder {
+  color: #444;
+}
+
+select {
+  cursor: pointer;
+}
+
+button {
+  padding: 8px 12px;
+  background: var(--black);
+  color: var(--ink);
+  border: var(--frame) solid var(--dim);
+  border-radius: 0;
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* hover inverts, like a highlighted menu row in-game */
+button:hover:not(:disabled) {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--black);
+}
+
+button:disabled {
+  color: #3a3a3a;
+  border-color: #262626;
+  cursor: default;
+}
+
+/* the toggle wears the color of the line it controls */
+.toggle-btn {
+  width: 70px;
+  flex: none;
+}
+
+.toggle-btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.toggle-btn.active:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--black);
+}
+
+.icon-btn {
+  width: 34px;
+  flex: none;
+  padding: 8px 0;
+  letter-spacing: 0;
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--black);
+}
+
+.add-line {
+  width: 100%;
+  margin-top: 4px;
+  color: var(--dim);
+  border-style: dashed;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+}
+
+.row > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+input[type='color'] {
+  width: 100%;
+  height: 34px;
+  padding: 0;
+  background: var(--black);
+  border: var(--frame) solid var(--dim);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+input[type='color']::-webkit-color-swatch-wrapper {
+  padding: 3px;
+}
+
+input[type='color']::-webkit-color-swatch {
+  border: none;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.actions button {
+  flex: 1;
+}
+
+.primary {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--black);
+}
+
+/* ── preview ────────────────────────────────────────────────────────────── */
+
+#preview-wrap {
+  border-color: var(--accent-2);
+  padding: 22px;
+}
+
+#preview-wrap::before {
+  border-color: var(--accent-soft);
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: var(--frame) solid #1c1c1c;
+}
+
+/* ── the ending, playing ─────────────────────────────────────────────────────
+   The game gives the ending the whole display and nothing else exists while it
+   runs, so this covers everything, letterboxed to 16:9 like the picker. */
+
+.playback {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: var(--black);
+}
+
+.playback canvas {
+  width: min(100vw, 177.78vh);
+  height: auto;
+  border: 0;
+}
+
+.playback-skip {
+  position: absolute;
+  bottom: 5vh;
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #3a3a3a;
+}
+
+/* ── "Select Text" ──────────────────────────────────────────────────────────
+   The game's ending picker. Everything inside the stage is sized in --u, 1% of the stage's
+   height, so it holds its proportions at any window size. The cylinder the rows sit on is
+   in EndingPicker.jsx. */
+
+#endingPicker {
+  width: 100%;
+  text-align: left;
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+#endingPicker:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--black);
+}
+
+.picker {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: var(--black);
+}
+
+/* The screen powers up rather than appearing: black, the frame snaps on at 650ms, the
+   title fades up behind it, and the list (static and rows together) pops in at 1200ms. */
+.picker.powering-up .picker-frame {
+  animation: picker-snap 1ms linear 650ms backwards;
+}
+
+.picker.powering-up .picker-title {
+  animation: picker-glow 500ms linear 700ms backwards;
+}
+
+.picker.powering-up .picker-list,
+.picker.powering-up .picker-hint {
+  animation: picker-snap 1ms linear 1200ms backwards;
+}
+
+@keyframes picker-snap {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes picker-glow {
+  from {
+    opacity: 0;
+  }
+}
+
+.picker-stage {
+  position: relative;
+  width: min(100vw, 177.78vh);
+  height: min(56.25vw, 100vh);
+  container-type: size;
+  --u: 1cqh;
+}
+
+.picker-frame {
+  position: absolute;
+  left: 14.3%;
+  top: 9.8%;
+  width: 71.4%;
+  height: 76.2%;
+  border: calc(0.19 * var(--u)) solid #f2f2f2;
+}
+
+.picker-title {
+  margin: 0;
+  padding-top: calc(2.4 * var(--u));
+  font-family: 'DotGothic16', monospace;
+  font-size: calc(4.2 * var(--u));
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  text-align: center;
+  color: #cc4257;
+  /* the game's title is a heavier cut of the dotted face than DotGothic16 ships */
+  -webkit-text-stroke: calc(0.11 * var(--u)) currentColor;
+}
+
+/* The title floats, vertically only, on a ~3s cycle. Each letter has its own period and
+   phase, handed down from EndingPicker.jsx, so the word ripples rather than rising and
+   falling as a block. */
+.picker-title-letter {
+  display: inline-block;
+  white-space: pre; /* the space between the words is a letter too; it must not collapse */
+  animation: picker-title-float var(--float-ms) ease-in-out var(--float-delay) infinite;
+}
+
+@keyframes picker-title-float {
+  0%,
+  100% {
+    transform: translateY(calc(-0.5 * var(--u)));
+  }
+  50% {
+    transform: translateY(calc(0.5 * var(--u)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .picker-title-letter {
+    animation: none;
+  }
+}
+
+/* the list is a window onto the cylinder: rows that roll past its rim are cut off */
+.picker-list {
+  position: absolute;
+  left: 2.1%;
+  top: 12.3%;
+  width: 95.8%;
+  height: 80%;
+  overflow: hidden;
+  background: var(--black);
+  /* the cylinder handles the gesture itself, so the browser mustn't scroll or zoom it away */
+  touch-action: none;
+}
+
+/* The list's left and right edges, which the horizontal rules run between. They run rim to
+   rim rather than the full height of the panel, ending level with the last visible ending.
+   --rim comes from EndingPicker.jsx.
+
+   They are the two borders of one box rather than two elements pinned to opposite edges of
+   the panel. The panel's edges fall on fractional pixels, so an element on each edge picks
+   up a different subpixel phase and the rules render at different weights (the left one
+   half-lit across 2px, the right one solid). One box's borders are snapped together. */
+.picker-list::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% - var(--rim) * var(--u));
+  height: calc(2 * var(--rim) * var(--u));
+  border-left: calc(0.13 * var(--u)) solid #e8e8e8;
+  border-right: calc(0.13 * var(--u)) solid #e8e8e8;
+  pointer-events: none;
+}
+
+/* Television static, redrawn a dozen times a second (EndingPicker.jsx). It fills the
+   cylinder, not the panel: it ends on the rim, level with the side rules and the last
+   visible ending, rather than running on into the black. */
+.picker-noise {
+  position: absolute;
+  left: 0;
+  top: calc(50% - var(--rim) * var(--u));
+  width: 100%;
+  height: calc(2 * var(--rim) * var(--u));
+  opacity: 0.5;
+}
+
+.picker-row,
+.picker-rule,
+.picker-clear {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  top: 50%;
+  margin-top: calc(-3.15 * var(--u)); /* half a row, so `top` is the row's centre */
+  height: calc(6.3 * var(--u));
+  will-change: transform;
+  opacity: 0; /* until the first frame places it on the cylinder */
+}
+
+/* The static doesn't reach the row under the cursor, so this band rides the cylinder with
+   it and masks the noise out. It also blinks gold, cycling about every 820ms between a
+   near-black trough and a full gold peak. */
+.picker-clear {
+  background: #14110a;
+  animation: picker-cursor-blink 820ms ease-in-out infinite;
+}
+
+@keyframes picker-cursor-blink {
+  0%,
+  100% {
+    background: #14110a;
+  }
+  50% {
+    background: #cca825;
+  }
+}
+
+.picker-rule {
+  height: calc(0.13 * var(--u));
+  margin-top: 0;
+  background: #e8e8e8;
+}
+
+.picker-row {
+  display: flex;
+  align-items: center;
+  padding: 0 calc(1 * var(--u));
+  border: 0;
+  background: none;
+  font-family: 'DotGothic16', monospace;
+  font-size: calc(3.7 * var(--u));
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden; /* a name longer than the list scrolls inside its row */
+  cursor: pointer;
+  /* Colour here means progress, not selection: an ending you've watched is teal, one you
+     haven't is white. */
+  color: #e6e6e6;
+}
+
+/* watched, so the list colours it in */
+.picker-row.seen {
+  color: #6fb0a9;
+}
+
+/* Names too long for the list scroll out and back, dwelling at each end. --shift (the
+   overrun) and --scroll-ms (a constant reading speed) are measured in EndingPicker.jsx;
+   a name that fits never gets the class, and never moves. */
+.picker-label {
+  display: inline-block;
+}
+
+.picker-label.scrolls {
+  animation: picker-marquee var(--scroll-ms) ease-in-out infinite;
+}
+
+@keyframes picker-marquee {
+  0%,
+  12% {
+    transform: translateX(0);
+  }
+  50%,
+  62% {
+    transform: translateX(calc(-1 * var(--shift)));
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .picker-label.scrolls {
+    animation: none;
+  }
+}
+
+/* The cursor is marked by the clean band's gold blink and by the row's stillness, not by
+   a hover style: the row's own colour belongs to the progress system. Without this, the
+   page chrome's invert-on-hover puts a second cursor under the mouse. */
+.picker-row:hover:not(:disabled) {
+  background: none;
+  color: #e6e6e6;
+}
+
+.picker-row.seen:hover:not(:disabled) {
+  color: #6fb0a9;
+}
+
+/* the game's dialogue box, holding the controls instead of a line of dialogue */
+.picker-hint {
+  position: absolute;
+  left: 13.8%;
+  top: 86.8%;
+  width: 72.1%;
+  height: 11.3%;
+  display: flex;
+  align-items: center;
+  gap: calc(3 * var(--u));
+  padding: 0 calc(2 * var(--u));
+  border: calc(0.19 * var(--u)) solid #f2f2f2;
+  font-size: calc(1.5 * var(--u));
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.picker-hint .picker-count {
+  margin-left: auto;
+  color: var(--ink);
+}
+
+/* the custom deck with nothing on it: the list is there, it just has no rows */
+.picker-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0 calc(4 * var(--u));
+  font-family: 'DotGothic16', monospace;
+  font-size: calc(2.6 * var(--u));
+  letter-spacing: 0.04em;
+  text-align: center;
+  color: #9a9a9a;
+}
+
+/* the type-to-find search, shown in the box while it's open (EndingPicker.jsx) */
+.picker-typed {
+  display: flex;
+  align-items: center;
+  color: var(--ink);
+}
+
+.picker-typed .cursor {
+  width: calc(0.9 * var(--u));
+  height: calc(1.6 * var(--u));
+  margin-left: calc(0.5 * var(--u));
+  background: var(--ink);
+}
+
+/* nothing starts with what you typed: say so rather than leaving the cursor sitting still */
+.picker-typed.miss {
+  color: #b45b5b;
+}
+
+.picker-typed.miss .cursor {
+  background: #b45b5b;
+}
+
+.picker-typed em {
+  margin-left: calc(1.4 * var(--u));
+  font-style: normal;
+  color: var(--dim);
+}
+
+/* The controls box goes the moment an ending is chosen, rather than sitting there through
+   the tear-out and the dead air. It isn't part of the signal loss (the frame, the rules and
+   the static are, in the rAF loop), so it simply cuts. */
+.picker.exiting .picker-hint {
+  display: none;
+}
+
+/* ── the true ending ────────────────────────────────────────────────────────
+   An embedded video on a black screen (TrueEnding.jsx), held to 16:9 and centred like every
+   other stage here, with nothing else on screen but the way out. */
+
+.trueend {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: var(--black);
+}
+
+.trueend-video {
+  width: min(100vw, 177.78vh);
+  height: min(56.25vw, 100vh);
+  border: 0;
+}
+
+/* out of the way of the picture; it only announces itself on hover */
+.trueend-back {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  padding: 6px 14px;
+  border: 1px solid var(--dim);
+  background: transparent;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--dim);
+  opacity: 0.35;
+}
+
+.trueend-back:hover:not(:disabled) {
+  opacity: 1;
+}
+
+
+/* ── the dialogue box, asking a question ────────────────────────────────────
+   The true ending's dialogue box, standing in for window.confirm: black, a white hairline
+   frame, the text left-aligned with a block caret blinking after it, in TT Chiaro (the
+   game's UI face, which the page chrome is also set in).
+
+   --u is the picker's unit, 1% of the height of a 16:9 stage fitted to the viewport, so the
+   box scales with the window. Every measurement is a fraction of it: on a 1080p screen the
+   box is 1428 x 123 at x245, so 132.2u wide with a 0.28u frame. */
+
+.confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  --u: min(1vh, 0.5625vw);
+  /* the game dims what's behind a box rather than hiding it */
+  background: rgba(0, 0, 0, 0.72);
+  animation: confirm-in 120ms steps(2) backwards;
+}
+
+@keyframes confirm-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.confirm-box {
+  width: calc(132.2 * var(--u));
+  padding: calc(2.4 * var(--u)) calc(2.8 * var(--u)) calc(2 * var(--u));
+  background: var(--black);
+  border: calc(0.28 * var(--u)) solid #f2f2f2;
+}
+
+.confirm-question {
+  margin: 0;
+  font-size: calc(2.9 * var(--u));
+  letter-spacing: 0.12em;
+  color: #e6e6e6;
+}
+
+/* the box's advance-cursor: a solid block on the text's own line */
+.confirm-caret {
+  display: inline-block;
+  width: 0.62em;
+  height: 0.92em;
+  margin-left: 0.35em;
+  background: #bdbdbd;
+  vertical-align: -0.06em;
+  animation: blink 1s steps(1) infinite;
+}
+
+.confirm-answers {
+  display: flex;
+  gap: calc(4 * var(--u));
+  margin-top: calc(2.2 * var(--u));
+  padding-left: 0.4em;
+}
+
+/* an answer is a menu row, not a button: no frame, no fill. the cursor marks it. */
+.confirm-answer {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: calc(0.2 * var(--u)) 0;
+  border: 0;
+  background: none;
+  font-size: calc(2.5 * var(--u));
+  letter-spacing: 0.14em;
+  text-transform: none;
+  color: var(--dim);
+}
+
+.confirm-answer.chosen {
+  color: #e6e6e6;
+}
+
+/* the page chrome inverts buttons on hover, which would be a second cursor in here */
+.confirm-answer:hover:not(:disabled) {
+  background: none;
+  color: var(--dim);
+}
+
+.confirm-answer.chosen:hover:not(:disabled) {
+  background: none;
+  color: #e6e6e6;
+}
+
+.confirm-cursor {
+  opacity: 0;
+  color: var(--accent);
+}
+
+.confirm-answer.chosen .confirm-cursor {
+  opacity: 1;
+}
+
+/* ── progress ───────────────────────────────────────────────────────────────── */
+
+.tally {
+  margin: 0 0 10px;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.tally b {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.danger {
+  width: 100%;
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.danger:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--black);
+}
+
+.note {
+  margin: 8px 0 0;
+  font-size: 10px;
+  line-height: 1.6;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+}
+
+.loading {
+  padding: 40px 0;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--dim);
+}

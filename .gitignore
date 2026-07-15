@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.vite/
+
+# Reference material: the footage and screenshots the visuals, timings and audio were
+# reverse-engineered from. Not used by the app at runtime, and the video alone is 139MB.
+/*.mp4
+/*.jpg
+/*.png
+reference_screencaps/
+screenshots/
+
+.DS_Store
+*.log
