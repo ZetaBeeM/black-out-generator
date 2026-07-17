@@ -1,18 +1,3 @@
-/**
- * One theme per chapter: the backdrop gradient, the frame accent, and the chapter's own
- * location strip, which is the text in the header bar.
- *
- * Backdrops are gradients only. The game also drifts a pattern of shapes over each
- * chapter's screen; that isn't reproduced, since it can't be done faithfully, and an
- * approximation of it reads worse than a clean gradient.
- *
- * Only the page chrome changes between chapters. The ending screen itself is always black
- * with white/red text, so the canvas is deliberately untouched.
- *
- * Order is chapter order; Blackout is chapter 07 and the default, so clicking
- * the chapter name wraps from it round to 00.
- */
-
 export const THEMES = [
   {
     id: 'prototype',
@@ -121,7 +106,6 @@ export const THEMES = [
     name: 'black out',
     crumbs: ['25th Ward', 'Area A4', 'Construction Site'],
     backdrop: '#000',
-    // black out is monochrome: black and grey, no colour anywhere in the chrome
     vars: {
       '--accent': '#b8b8b8',
       '--accent-2': '#5e5e5e',
@@ -131,5 +115,4 @@ export const THEMES = [
     },
   },
 ];
-
 export const DEFAULT_THEME = THEMES.findIndex((theme) => theme.id === 'blackout');

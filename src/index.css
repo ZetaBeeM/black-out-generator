@@ -6,9 +6,6 @@
 }
 
 :root {
-  /* Boxes are black with hairline frames, square corners, no gradients. Only the
-     accents and the backdrop change between chapters; these are the Blackout
-     defaults, overridden per theme from themes.js. */
   --black: #000;
   --accent: #b8b8b8;
   --accent-2: #5e5e5e;
@@ -39,7 +36,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* a faint scanline and vignette pass, so the black doesn't read as flat CSS black */
+/* scanline effects */
 body::after {
   content: '';
   position: fixed;
@@ -51,7 +48,7 @@ body::after {
     radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.5) 100%);
 }
 
-/* each chapter's backdrop gradient, behind everything. the panels stay black on top of it. */
+/* chapter's backdrop gradient behind everything. */
 .backdrop {
   position: fixed;
   inset: 0;
@@ -80,7 +77,7 @@ body::after {
   border-right: var(--frame) solid var(--dim);
 }
 
-/* the chapter name cycles the theme: the one crumb you can click */
+/* the chapter name cycles the theme */
 .crumbs .chapter {
   color: var(--accent);
   background: none;
@@ -110,13 +107,12 @@ body::after {
   align-items: start;
 }
 
-/* The editor is mounted but hidden until the ending has played. This is needed because
-   `display: grid` above otherwise wins against the `hidden` attribute's own display: none. */
+/* The editor is mounted but hidden until the ending has played */
 .app[hidden] {
   display: none;
 }
 
-/* the ending holds on an empty screen, then the editor comes up out of the black */
+/* the ending holds on an empty screen, then the editor comes up out of the black to make it closer to game timing */
 .crumbs,
 .app:not([hidden]) {
   animation: editor-in 900ms ease-out backwards;
@@ -141,8 +137,7 @@ body::after {
   }
 }
 
-/* every box in the game is a black rect with a 1px colored frame, doubled by a
-   second frame inset a few px in the secondary accent */
+/* textbox recreation from the game */
 .panel {
   position: relative;
   background: var(--black);
@@ -170,7 +165,7 @@ h1 {
   text-transform: uppercase;
 }
 
-/* section headers read like the game's location bar: | LIKE THIS | */
+/* section headers read like the game's location bar */
 .legend {
   display: block;
   margin: 22px 0 10px;
@@ -201,9 +196,7 @@ h1 {
 
 /* ── controls ───────────────────────────────────────────────────────────── */
 
-/* A line is dragged by its grip to reorder it (see App.jsx). The row carries the drop rule
-   on whichever edge the line would land at, so the gap it will fall into is visible while
-   the mouse is still moving. */
+/* A line is dragged by its grip to reorder it  */
 .line-item {
   position: relative;
   display: flex;
@@ -238,7 +231,7 @@ h1 {
   flex: none;
   width: 22px;
   padding: 0;
-  /* the grip drags the line itself; a touch here must not scroll the panel */
+  /* the grip drags the line itself; a touch here musn't scroll the panel */
   touch-action: none;
   border-color: transparent;
   color: var(--dim);
@@ -428,10 +421,6 @@ canvas {
   border: var(--frame) solid #1c1c1c;
 }
 
-/* ── the ending, playing ─────────────────────────────────────────────────────
-   The game gives the ending the whole display and nothing else exists while it
-   runs, so this covers everything, letterboxed to 16:9 like the picker. */
-
 .playback {
   position: fixed;
   inset: 0;
@@ -457,10 +446,7 @@ canvas {
   color: #3a3a3a;
 }
 
-/* ── "Select Text" ──────────────────────────────────────────────────────────
-   The game's ending picker. Everything inside the stage is sized in --u, 1% of the stage's
-   height, so it holds its proportions at any window size. The cylinder the rows sit on is
-   in EndingPicker.jsx. */
+/* ending picker styling  */
 
 #endingPicker {
   width: 100%;
@@ -484,8 +470,7 @@ canvas {
   background: var(--black);
 }
 
-/* The screen powers up rather than appearing: black, the frame snaps on at 650ms, the
-   title fades up behind it, and the list (static and rows together) pops in at 1200ms. */
+/* CRT turning off and on effects */
 .picker.powering-up .picker-frame {
   animation: picker-snap 1ms linear 650ms backwards;
 }
@@ -537,13 +522,10 @@ canvas {
   letter-spacing: 0.05em;
   text-align: center;
   color: #cc4257;
-  /* the game's title is a heavier cut of the dotted face than DotGothic16 ships */
   -webkit-text-stroke: calc(0.11 * var(--u)) currentColor;
 }
 
-/* The title floats, vertically only, on a ~3s cycle. Each letter has its own period and
-   phase, handed down from EndingPicker.jsx, so the word ripples rather than rising and
-   falling as a block. */
+/* styling for the ending picker letters including the vertical float effect */
 .picker-title-letter {
   display: inline-block;
   white-space: pre; /* the space between the words is a letter too; it must not collapse */
@@ -566,7 +548,7 @@ canvas {
   }
 }
 
-/* the list is a window onto the cylinder: rows that roll past its rim are cut off */
+/* the list is a window onto the cylinder w rows that roll past its rim are cut off */
 .picker-list {
   position: absolute;
   left: 2.1%;
@@ -579,14 +561,7 @@ canvas {
   touch-action: none;
 }
 
-/* The list's left and right edges, which the horizontal rules run between. They run rim to
-   rim rather than the full height of the panel, ending level with the last visible ending.
-   --rim comes from EndingPicker.jsx.
-
-   They are the two borders of one box rather than two elements pinned to opposite edges of
-   the panel. The panel's edges fall on fractional pixels, so an element on each edge picks
-   up a different subpixel phase and the rules render at different weights (the left one
-   half-lit across 2px, the right one solid). One box's borders are snapped together. */
+/* Borders for the picker */
 .picker-list::before {
   content: '';
   position: absolute;
@@ -599,9 +574,7 @@ canvas {
   pointer-events: none;
 }
 
-/* Television static, redrawn a dozen times a second (EndingPicker.jsx). It fills the
-   cylinder, not the panel: it ends on the rim, level with the side rules and the last
-   visible ending, rather than running on into the black. */
+/* TV static effect to recreate the in-game picker */
 .picker-noise {
   position: absolute;
   left: 0;
@@ -624,9 +597,7 @@ canvas {
   opacity: 0; /* until the first frame places it on the cylinder */
 }
 
-/* The static doesn't reach the row under the cursor, so this band rides the cylinder with
-   it and masks the noise out. It also blinks gold, cycling about every 820ms between a
-   near-black trough and a full gold peak. */
+/* Exclude the selected ending from having the static effect,  instead having a blinking yellow background. */
 .picker-clear {
   background: #14110a;
   animation: picker-cursor-blink 820ms ease-in-out infinite;
@@ -663,19 +634,14 @@ canvas {
   white-space: nowrap;
   overflow: hidden; /* a name longer than the list scrolls inside its row */
   cursor: pointer;
-  /* Colour here means progress, not selection: an ending you've watched is teal, one you
-     haven't is white. */
   color: #e6e6e6;
 }
 
-/* watched, so the list colours it in */
 .picker-row.seen {
-  color: #6fb0a9;
+  color: #6fb0a9; /* Color for seen endings */
 }
 
-/* Names too long for the list scroll out and back, dwelling at each end. --shift (the
-   overrun) and --scroll-ms (a constant reading speed) are measured in EndingPicker.jsx;
-   a name that fits never gets the class, and never moves. */
+/* Names too long for the list scroll out and back */
 .picker-label {
   display: inline-block;
 }
@@ -704,9 +670,6 @@ canvas {
   }
 }
 
-/* The cursor is marked by the clean band's gold blink and by the row's stillness, not by
-   a hover style: the row's own colour belongs to the progress system. Without this, the
-   page chrome's invert-on-hover puts a second cursor under the mouse. */
 .picker-row:hover:not(:disabled) {
   background: none;
   color: #e6e6e6;
@@ -769,7 +732,7 @@ canvas {
   background: var(--ink);
 }
 
-/* nothing starts with what you typed: say so rather than leaving the cursor sitting still */
+/* if nothing starts with what you typed the search turns red to indicate so */
 .picker-typed.miss {
   color: #b45b5b;
 }
@@ -784,17 +747,12 @@ canvas {
   color: var(--dim);
 }
 
-/* The controls box goes the moment an ending is chosen, rather than sitting there through
-   the tear-out and the dead air. It isn't part of the signal loss (the frame, the rules and
-   the static are, in the rAF loop), so it simply cuts. */
+
 .picker.exiting .picker-hint {
   display: none;
 }
 
-/* ── the true ending ────────────────────────────────────────────────────────
-   An embedded video on a black screen (TrueEnding.jsx), held to 16:9 and centred like every
-   other stage here, with nothing else on screen but the way out. */
-
+/* black background with a full-width video player for the true end playback (cba recreating the whole thing in browser) */
 .trueend {
   position: fixed;
   inset: 0;
@@ -810,7 +768,6 @@ canvas {
   border: 0;
 }
 
-/* out of the way of the picture; it only announces itself on hover */
 .trueend-back {
   position: absolute;
   right: 16px;
@@ -830,14 +787,7 @@ canvas {
 }
 
 
-/* ── the dialogue box, asking a question ────────────────────────────────────
-   The true ending's dialogue box, standing in for window.confirm: black, a white hairline
-   frame, the text left-aligned with a block caret blinking after it, in TT Chiaro (the
-   game's UI face, which the page chrome is also set in).
-
-   --u is the picker's unit, 1% of the height of a 16:9 stage fitted to the viewport, so the
-   box scales with the window. Every measurement is a fraction of it: on a 1080p screen the
-   box is 1428 x 123 at x245, so 132.2u wide with a 0.28u frame. */
+/* text box recreation for the question prompts */
 
 .confirm {
   position: fixed;
@@ -846,7 +796,6 @@ canvas {
   display: grid;
   place-items: center;
   --u: min(1vh, 0.5625vw);
-  /* the game dims what's behind a box rather than hiding it */
   background: rgba(0, 0, 0, 0.72);
   animation: confirm-in 120ms steps(2) backwards;
 }
@@ -871,7 +820,7 @@ canvas {
   color: #e6e6e6;
 }
 
-/* the box's advance-cursor: a solid block on the text's own line */
+/* the box's advance-cursor (again a solid block on the text's own line) */
 .confirm-caret {
   display: inline-block;
   width: 0.62em;
@@ -889,7 +838,6 @@ canvas {
   padding-left: 0.4em;
 }
 
-/* an answer is a menu row, not a button: no frame, no fill. the cursor marks it. */
 .confirm-answer {
   display: flex;
   align-items: center;
@@ -907,7 +855,6 @@ canvas {
   color: #e6e6e6;
 }
 
-/* the page chrome inverts buttons on hover, which would be a second cursor in here */
 .confirm-answer:hover:not(:disabled) {
   background: none;
   color: var(--dim);
@@ -927,7 +874,6 @@ canvas {
   opacity: 1;
 }
 
-/* ── progress ───────────────────────────────────────────────────────────────── */
 
 .tally {
   margin: 0 0 10px;
